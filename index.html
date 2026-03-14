@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>March Madness Player Draft — Points Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <div id="auth-gate" class="auth-gate" hidden>
+      <div class="auth-gate-card">
+        <h1>March Madness Player Draft</h1>
+        <p>Sign in with your Google account to view the draft.</p>
+        <p class="auth-google-label">Sign in with Google</p>
+        <div id="google-signin-btn" class="google-signin-btn-container">
+          <span class="auth-btn-loading">Loading sign-in button…</span>
+        </div>
+        <p class="auth-gate-hint">Your email is only used to verify access.</p>
+        <button type="button" id="auth-skip-btn" class="btn-skip-auth">Continue without signing in</button>
+      </div>
+    </div>
+
+    <div id="app-wrap" class="app">
+      <header class="site-header">
+        <h1>March Madness Player Draft</h1>
+        <p class="tagline">Track points by roster · 7 entries · Live during the tournament</p>
+        <p id="auth-user" class="auth-user" hidden></p>
+        <button type="button" id="sign-in-btn" class="btn-sign-in" hidden>Sign in</button>
+        <button type="button" id="sign-out-btn" class="btn-sign-out" hidden>Sign out</button>
+      </header>
+
+      <nav id="app-nav" class="nav" aria-label="Main">
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#teams">Teams</a>
+        <a href="#pool">Player pool</a>
+        <a href="#draft">Draft order</a>
+        <a href="#bracket">Bracket</a>
+      </nav>
+
+      <main id="app-main" class="main">
+        <div id="standings-view" data-view="leaderboard">
+          <div class="standings-header">
+            <h2>Leaderboard</h2>
+            <p class="refresh-hint">Loading…</p>
+          </div>
+          <ol class="standings-list">
+            <li class="standings-row"><span class="rank">1</span><span class="entry-name">Entry 1</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">2</span><span class="entry-name">Entry 2</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">3</span><span class="entry-name">Entry 3</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">4</span><span class="entry-name">Entry 4</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">5</span><span class="entry-name">Entry 5</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">6</span><span class="entry-name">Entry 6</span><span class="total-points">0 pts</span></li>
+            <li class="standings-row"><span class="rank">7</span><span class="entry-name">Entry 7</span><span class="total-points">0 pts</span></li>
+          </ol>
+          <p><a href="#teams">Teams & rosters</a> · <a href="#pool">Player pool</a></p>
+        </div>
+        <div id="rosters-view" data-view="teams" hidden></div>
+        <div id="pool-view" data-view="pool" hidden></div>
+        <div id="draft-view" data-view="draft" hidden></div>
+        <div id="bracket-view" data-view="bracket" hidden></div>
+      </main>
+    </div>
+
+    <noscript>
+      <p class="noscript-msg">Enable JavaScript to use Teams, Player pool, and live score updates.</p>
+    </noscript>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
