@@ -178,22 +178,22 @@ const ESPN = {
 /** ESPN Web API: top scorers by PPG (byathlete, sorted by offensive.avgPoints desc). */
 const ESPN_BYATHLETE = {
   base: 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byathlete',
-  /** Top qualified players by PPG; conference=50 (e.g. D1). */
-  topScorersUrl(limit = 100) {
+  /** Top qualified players by PPG; conference=50 (e.g. D1). Supports pagination. */
+  topScorersUrl(limit = 50, page = 1) {
     const params = new URLSearchParams({
       region: 'us',
       lang: 'en',
       contentorigin: 'espn',
       isqualified: 'true',
-      page: '1',
+      page: String(page),
       limit: String(limit),
       sort: 'offensive.avgPoints:desc',
       conference: '50',
     });
     return `${this.base}?${params}`;
   },
-  fetchTopScorers(limit) {
-    return fetch(this.topScorersUrl(limit)).then(r => r.json());
+  fetchTopScorers(limit, page) {
+    return fetch(this.topScorersUrl(limit, page)).then(r => r.json());
   },
 };
 
@@ -425,45 +425,61 @@ function teamLogoUrl(teamId) {
   return `https://a.espncdn.com/i/teamlogos/ncaa/500/${teamId}.png`;
 }
 
+/** Per-page limit for byathlete API (API may cap this; we paginate to get full list). */
+const PPG_LEADERS_PAGE_SIZE = 50;
+
 /**
  * Fetch full-season PPG leaders for current NCAA men's season.
- * Uses ESPN byathlete API (sorted by offensive.avgPoints desc).
+ * Uses ESPN byathlete API (sorted by offensive.avgPoints desc). Fetches all pages so we get
+ * the full leaderboard, not just the first page (e.g. 14–25 players).
  * Returns { leaders: [{ id, displayName, teamId, teamName, ppg, gamesPlayed }], byPlayer: {} }
  * and updates season PPG cache.
  */
 async function fetchPpgLeaders() {
-  let data;
-  try {
-    data = await ESPN_BYATHLETE.fetchTopScorers(100);
-  } catch (e) {
-    throw new Error('Could not load leaders: ' + (e.message || 'network error'));
-  }
-  const athletes = data && data.athletes;
-  if (!Array.isArray(athletes) || athletes.length === 0) {
-    throw new Error('No athletes in response.');
-  }
   const leaders = [];
   const byPlayer = {};
-  for (const item of athletes) {
-    const a = item.athlete;
-    if (!a || !a.id) continue;
-    const id = String(a.id);
-    const offensive = item.categories && item.categories.find(c => c.name === 'offensive');
-    const general = item.categories && item.categories.find(c => c.name === 'general');
-    const ppg = offensive && offensive.values && offensive.values[0] != null ? Number(offensive.values[0]) : 0;
-    const gamesPlayed = general && general.values && general.values[0] != null ? Math.round(Number(general.values[0])) : 0;
-    const teamName = [a.teamShortName, a.teamName].filter(Boolean).join(' ') || '';
-    const teamId = a.teamId != null ? String(a.teamId) : undefined;
-    leaders.push({
-      id,
-      displayName: a.displayName || a.shortName || 'Player ' + id,
-      teamId,
-      teamName,
-      ppg,
-      gamesPlayed,
-    });
-    byPlayer[id] = { ppg, gamesPlayed };
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    let data;
+    try {
+      data = await ESPN_BYATHLETE.fetchTopScorers(PPG_LEADERS_PAGE_SIZE, page);
+    } catch (e) {
+      if (page === 1) throw new Error('Could not load leaders: ' + (e.message || 'network error'));
+      break;
+    }
+    const athletes = data && data.athletes;
+    if (!Array.isArray(athletes) || athletes.length === 0) {
+      if (page === 1) throw new Error('No athletes in response.');
+      break;
+    }
+    for (const item of athletes) {
+      const a = item.athlete;
+      if (!a || !a.id) continue;
+      const id = String(a.id);
+      if (byPlayer[id]) continue; // dedupe across pages
+      const offensive = item.categories && item.categories.find(c => c.name === 'offensive');
+      const general = item.categories && item.categories.find(c => c.name === 'general');
+      const ppg = offensive && offensive.values && offensive.values[0] != null ? Number(offensive.values[0]) : 0;
+      const gamesPlayed = general && general.values && general.values[0] != null ? Math.round(Number(general.values[0])) : 0;
+      const teamName = [a.teamShortName, a.teamName].filter(Boolean).join(' ') || '';
+      const teamId = a.teamId != null ? String(a.teamId) : undefined;
+      leaders.push({
+        id,
+        displayName: a.displayName || a.shortName || 'Player ' + id,
+        teamId,
+        teamName,
+        ppg,
+        gamesPlayed,
+      });
+      byPlayer[id] = { ppg, gamesPlayed };
+    }
+    hasMore = athletes.length >= PPG_LEADERS_PAGE_SIZE;
+    page += 1;
   }
+
+  if (leaders.length === 0) throw new Error('No athletes in response.');
   saveSeasonPpgCache({ byPlayer, updatedAt: Date.now() });
   return { leaders, byPlayer };
 }
