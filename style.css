@@ -910,9 +910,17 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.draft-slots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
 .draft-slots h3,
 .draft-train h3 {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text);

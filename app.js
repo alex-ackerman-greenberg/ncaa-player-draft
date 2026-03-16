@@ -1313,7 +1313,10 @@ function renderDraft() {
       <p>Snake draft: round 1 is 1→2→3→4→5→6→7, round 2 is 7→6→5→4→3→2→1, and so on. Set which team is in each draft slot below.</p>
     </div>
     <section class="draft-slots card">
-      <h3>Draft slots (who picks when)</h3>
+      <div class="draft-slots-header">
+        <h3>Draft slots (who picks when)</h3>
+        <button type="button" id="randomize-draft-btn" class="btn-secondary">🎲 Randomize order</button>
+      </div>
       <p class="draft-slots-desc">Slot 1 picks first in odd rounds and last in even rounds. Assign each team to a slot.</p>
       <div class="draft-slot-grid">
         <label class="draft-slot-row">
@@ -1358,6 +1361,16 @@ function renderDraft() {
     </section>
     <p class="view-footer"><a href="#leaderboard">Leaderboard</a> · <a href="#teams">Teams</a> · <a href="#pool">Player pool</a></p>
   `;
+
+  view.querySelector('#randomize-draft-btn')?.addEventListener('click', () => {
+    const order = getDraftSlotOrder().slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    saveDraftSlotOrder(order);
+    renderDraft();
+  });
 
   view.querySelectorAll('.draft-slot-select').forEach(sel => {
     sel.addEventListener('change', () => {
