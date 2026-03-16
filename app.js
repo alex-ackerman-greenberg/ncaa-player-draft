@@ -505,17 +505,67 @@ async function refreshPoolFromTopScorers(onProgress) {
 }
 
 /**
+ * Fetch all tournament team IDs by querying the bracket schedule across the tournament window.
+ * Queries the next 9 days in parallel (covers First Four + all Round of 64 games).
+ * Falls back to rankings if no bracket data is found yet.
+ * Returns a Set of team ID strings.
+ */
+async function fetchTournamentTeamIds() {
+  const today = new Date();
+  const datesToFetch = [];
+  for (let i = 0; i <= 8; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    datesToFetch.push(d.toISOString().slice(0, 10).replace(/-/g, ''));
+  }
+
+  const results = await Promise.allSettled(
+    datesToFetch.map(dateStr =>
+      fetch(`${ESPN.base}/scoreboard?seasontype=3&dates=${dateStr}&limit=100`).then(r => r.json())
+    )
+  );
+
+  const set = new Set();
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    for (const ev of result.value.events || []) {
+      for (const comp of ev.competitions || []) {
+        for (const c of comp.competitors || []) {
+          const id = c.team && c.team.id != null ? String(c.team.id) : null;
+          // Filter out placeholder IDs for TBD play-in slots (negative or non-numeric-looking)
+          if (id && /^\d+$/.test(id)) set.add(id);
+        }
+      }
+    }
+  }
+
+  // Fall back to Coaches Poll rankings if bracket isn't released yet
+  if (set.size < 8) {
+    try {
+      const rankingsData = await ESPN.rankings();
+      const ranking = rankingsData.rankings && rankingsData.rankings[0];
+      if (ranking && ranking.ranks) {
+        for (const r of ranking.ranks) {
+          if (r.team && r.team.id) set.add(String(r.team.id));
+        }
+      }
+    } catch (_) {}
+  }
+
+  return set;
+}
+
+/**
  * Load player pool with top scorers (by full-season PPG) from teams in the NCAA tournament field.
- * Uses rankings for tournament teams, then keeps only PPG leaders whose team is in that set.
+ * Discovers the tournament field from the actual bracket schedule (not the Coaches Poll),
+ * so teams like BYU that are in the tournament but outside the top 25 are included.
  */
 async function refreshPoolFromTournamentField(onProgress) {
   if (onProgress) onProgress(0, 2, 'Fetching tournament field...');
-  const rankingsData = await ESPN.rankings();
-  const ranking = rankingsData.rankings && rankingsData.rankings[0];
-  if (!ranking || !ranking.ranks || ranking.ranks.length === 0) {
-    throw new Error('Could not load tournament field (rankings).');
+  const tournamentTeamIds = await fetchTournamentTeamIds();
+  if (tournamentTeamIds.size === 0) {
+    throw new Error('Could not load tournament field. Try again or use "Load all PPG leaders".');
   }
-  const tournamentTeamIds = new Set((ranking.ranks.map(r => r.team).filter(Boolean)).map(t => String(t.id)));
 
   if (onProgress) onProgress(1, 2, 'Fetching full-season PPG leaders...');
   const { leaders } = await fetchPpgLeaders();
